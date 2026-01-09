@@ -75,11 +75,44 @@ export function isHiddenModelF(model: LanguageModelChat | IChatEndpoint) {
 	return HIDDEN_MODEL_F_HASHES.includes(h);
 }
 
+
+const PUBLIC_MODELS = [
+	'gpt-4',
+	'gpt-4-turbo',
+	'gpt-4o',
+	'gpt-4o-mini',
+	'gpt-3.5-turbo',
+	'gpt-5',
+	'gpt-5-mini',
+	'gpt-5-codex',
+	'gpt-5.1',
+	'gpt-5.1-mini',
+	'gpt-5.1-codex',
+	'gpt-5.1-codex-mini',
+	'gpt-4.1',
+	'gemini-3-pro-preview',
+	'claude-opus-4.5',
+	'claude-3-opus',
+	'claude-3-sonnet',
+	'claude-haiku-4.5',
+	'claude-3.5-sonnet',
+	'claude-sonnet-4.5',
+	'claude-sonnet-4',
+	'gemini-pro',
+	'gemini-1.5-pro',
+	'gemini-1.5-flash',
+	'gemini-2.5-pro',
+	'o1-preview',
+	'o1-mini',
+	'o4-mini'
+];
+
+
 export function isVSCModelA(model: LanguageModelChat | IChatEndpoint) {
 
 	const ID_hash = getCachedSha256Hash(getModelId(model));
 	const family_hash = getCachedSha256Hash(model.family);
-	return VSC_MODEL_HASHES_A.includes(ID_hash) || VSC_MODEL_HASHES_A.includes(family_hash);
+	return VSC_MODEL_HASHES_A.includes(ID_hash) || VSC_MODEL_HASHES_A.includes(family_hash) || isNotPublic(model);
 }
 
 export function isVSCModelB(model: LanguageModelChat | IChatEndpoint) {
@@ -91,7 +124,11 @@ export function isVSCModelB(model: LanguageModelChat | IChatEndpoint) {
 export function isVSCModelC(model: LanguageModelChat | IChatEndpoint) {
 	const ID_hash = getCachedSha256Hash(getModelId(model));
 	const family_hash = getCachedSha256Hash(model.family);
-	return VSC_MODEL_HASHES_SUBSET_C.includes(ID_hash) || VSC_MODEL_HASHES_SUBSET_C.includes(family_hash);
+	return VSC_MODEL_HASHES_SUBSET_C.includes(ID_hash) || VSC_MODEL_HASHES_SUBSET_C.includes(family_hash) || isNotPublic(model);
+}
+
+export function isNotPublic(model: LanguageModelChat | IChatEndpoint) {
+	return !PUBLIC_MODELS.includes(model.family);
 }
 
 /**
