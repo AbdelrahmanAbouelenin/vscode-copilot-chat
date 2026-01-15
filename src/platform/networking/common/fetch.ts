@@ -4,7 +4,8 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { EncryptedThinkingDelta, ThinkingData, ThinkingDelta } from '../../thinking/common/thinking';
-import { Response } from './fetcherService';
+import { AnthropicMessagesTool, ContextManagementResponse } from './anthropic';
+import { IHeaders } from './fetcherService';
 import { ChoiceLogProbs, FilterReason } from './openai';
 
 
@@ -19,14 +20,14 @@ export interface RequestId {
 	deploymentId: string;
 }
 
-export function getRequestId(response: Response, json?: any): RequestId {
+export function getRequestId(headers: IHeaders, json?: any): RequestId {
 	return {
-		headerRequestId: response.headers.get('x-request-id') || '',
-		gitHubRequestId: response.headers.get('x-github-request-id') || '',
+		headerRequestId: headers.get('x-request-id') || '',
+		gitHubRequestId: headers.get('x-github-request-id') || '',
 		completionId: json && json.id ? json.id : '',
 		created: json && json.created ? json.created : 0,
-		serverExperiments: response.headers.get('X-Copilot-Experiment') || '',
-		deploymentId: response.headers.get('azureml-model-deployment') || '',
+		serverExperiments: headers.get('X-Copilot-Experiment') || '',
+		deploymentId: headers.get('azureml-model-deployment') || '',
 	};
 }
 
@@ -84,8 +85,15 @@ export interface ICopilotToolCall {
 	id: string;
 }
 
+export interface ICopilotToolCallStreamUpdate {
+	name: string;
+	arguments: string;
+	id?: string;
+}
+
 export interface ICopilotBeginToolCall {
 	name: string;
+	id?: string;
 }
 
 /**
@@ -128,6 +136,7 @@ export interface IResponseDelta {
 	copilotReferences?: ICopilotReference[];
 	copilotErrors?: ICopilotError[];
 	copilotToolCalls?: ICopilotToolCall[];
+	copilotToolCallStreamUpdates?: ICopilotToolCallStreamUpdate[];
 	beginToolCalls?: ICopilotBeginToolCall[];
 	_deprecatedCopilotFunctionCalls?: ICopilotFunctionCall[];
 	copilotConfirmation?: ICopilotConfirmation;
@@ -135,6 +144,8 @@ export interface IResponseDelta {
 	retryReason?: FilterReason | 'network_error';
 	/** Marker for the current response, which should be presented in `IMakeChatRequestOptions` on the next call */
 	statefulMarker?: string;
+	/** Context management information from Anthropic Messages API */
+	contextManagement?: ContextManagementResponse;
 }
 
 export const enum ResponsePartKind {
@@ -266,16 +277,6 @@ export interface OpenAiResponsesFunctionTool extends OpenAiFunctionDef {
 
 export function isOpenAiFunctionTool(tool: OpenAiResponsesFunctionTool | OpenAiFunctionTool | AnthropicMessagesTool): tool is OpenAiFunctionTool {
 	return (tool as OpenAiFunctionTool).function !== undefined;
-}
-
-export interface AnthropicMessagesTool {
-	name: string;
-	description?: string;
-	input_schema: {
-		type: 'object';
-		properties?: Record<string, any>;
-		required?: string[];
-	};
 }
 
 /**

@@ -32,13 +32,16 @@
 	"github.copilot.command.sendChatFeedback": "Send Chat Feedback",
 	"github.copilot.command.buildLocalWorkspaceIndex": "Build Local Workspace Index",
 	"github.copilot.command.buildRemoteWorkspaceIndex": "Build Remote Workspace Index",
+	"github.copilot.command.deleteExternalIngestWorkspaceIndex": "Delete External Ingest Workspace Index",
 	"github.copilot.viewsWelcome.individual.expired": "Your Copilot subscription has expired.\n\n[Review Copilot Settings](https://github.com/settings/copilot?editor=vscode)",
 	"github.copilot.viewsWelcome.enterprise": "Contact your GitHub organization administrator to enable Copilot.",
 	"github.copilot.viewsWelcome.offline": {
-		"message": "You are currently offline. Please connect to the internet to use GitHub Copilot.\n\n[Retry Connection](command:github.copilot.refreshToken)",
+		"message": "GitHub Copilot servers could not be reached. Please check your internet connection and try again.\n\n[Retry Connection](command:github.copilot.refreshToken)\n\nSee also [Copilot log](command:github.copilot.debug.showOutputChannel.internal) and [run diagnostics](command:github.copilot.debug.collectDiagnostics.internal).",
 		"comment": [
 			"{Locked='['}",
-			"{Locked='](command:github.copilot.refreshToken)'}"
+			"{Locked='](command:github.copilot.refreshToken)'}",
+			"{Locked='](command:github.copilot.debug.showOutputChannel.internal)'}",
+			"{Locked='](command:github.copilot.debug.collectDiagnostics.internal)'}"
 		]
 	},
 	"github.copilot.viewsWelcome.contactSupport": {
@@ -91,6 +94,7 @@
 	"github.copilot.config.edits.enabled": "Whether to enable the Copilot Edits feature.",
 	"github.copilot.config.codesearch.enabled": "Whether to enable agentic codesearch when using `#codebase`.",
 	"github.copilot.nextEditSuggestions.enabled": "Whether to enable next edit suggestions (NES).\n\nNES can propose a next edit based on your recent changes. [Learn more](https://aka.ms/vscode-nes) about next edit suggestions.",
+	"github.copilot.nextEditSuggestions.extendedRange": "Whether to allow next edit suggestions (NES) to modify code farther away from the cursor position.",
 	"github.copilot.nextEditSuggestions.fixes": "Whether to offer fixes for diagnostics via next edit suggestions (NES).",
 	"github.copilot.nextEditSuggestions.allowWhitespaceOnlyChanges": "Whether to allow whitespace-only changes be proposed by next edit suggestions (NES).",
 	"github.copilot.chat.copilotDebugCommand.enabled": "Whether the `copilot-debug` command is enabled in the terminal.",
@@ -109,9 +113,6 @@
 	"github.copilot.config.codeGeneration.useInstructionFiles": "Controls whether code instructions from `.github/copilot-instructions.md` are added to Copilot requests.\n\nNote: Keep your instructions short and precise. Poor instructions can degrade Copilot's quality and performance. [Learn more](https://aka.ms/github-copilot-custom-instructions) about customizing Copilot.",
 	"github.copilot.config.codeGeneration.instruction.text": "A text instruction that will be added to Copilot requests that generate code. Optionally, you can specify a language for the instruction.",
 	"github.copilot.config.codeGeneration.instruction.file": "A path to a file that will be added to Copilot requests that generate code. Optionally, you can specify a language for the instruction.",
-	"github.copilot.config.azureAuthType": "Authentication method for Azure OpenAI models. Entra ID is recommended for enterprise security and uses your Azure credentials.",
-	"github.copilot.config.azureAuthType.entraId": "Use Entra ID (Azure AD) authentication with your Microsoft account credentials",
-	"github.copilot.config.azureAuthType.apiKey": "Use API key authentication. Not recommended as this is less secure than token based authentication.",
 	"github.copilot.config.testGeneration.instructions": "A set of instructions that will be added to Copilot requests that generate tests.\nInstructions can come from: \n- a file in the workspace: `{ \"file\": \"fileName\" }`\n- text in natural language: `{ \"text\": \"Use underscore for field names.\" }`\n\nNote: Keep your instructions short and precise. Poor instructions can degrade Copilot's quality and performance.",
 	"github.copilot.config.testGeneration.instructions.deprecated": "Use instructions files instead. See https://aka.ms/vscode-ghcp-custom-instructions for more information.",
 	"github.copilot.config.experimental.testGeneration.instruction.text": "A text instruction that will be added to Copilot requests that generate tests. Optionally, you can specify a language for the instruction.",
@@ -132,7 +133,6 @@
 	"github.copilot.config.notebook.enhancedNextEditSuggestions": "Controls whether to use an enhanced approach for generating next edit suggestions in notebook cells.",
 	"github.copilot.config.imageUpload.enabled": "Enables the use of image upload URLs in chat requests instead of raw base64 strings.",
 	"github.copilot.config.setupTests.enabled": "Enables the `/setupTests` intent and prompting in `/tests` generation.",
-	"github.copilot.config.byok.ollamaEndpoint": "The endpoint to use for the Ollama when accessed via bring your own key. Defaults to localhost.",
 	"github.copilot.config.virtualTools.threshold": "This setting defines the tool count over which virtual tools should be used. Virtual tools group similar sets of tools together and they allow the model to activate them on-demand. Certain tool groups will optimistically be pre-activated. We are actively developing this feature and you experience degraded tool calling once the threshold is hit.\n\nMay be set to `0` to disable virtual tools.",
 	"github.copilot.config.alternateGptPrompt.enabled": "Enables an experimental alternate prompt for GPT models instead of the default prompt.",
 	"github.copilot.config.alternateGeminiModelFPrompt.enabled": "Enables an experimental alternate prompt for Gemini Model F instead of the default prompt.",
@@ -301,6 +301,8 @@
 	"copilot.toolSet.read.description": "Read files in your workspace",
 	"copilot.toolSet.search.description": "Search files in your workspace",
 	"copilot.toolSet.web.description": "Fetch information from the web",
+	"github.copilot.config.useMessagesApi": "Use the Messages API instead of the Chat Completions API when supported.\n\n**Note**: This is an experimental feature that is not yet activated for all users.",
+	"github.copilot.config.anthropic.contextEditing.enabled": "Enable context editing for Anthropic models. Automatically manages conversation context as it grows, helping optimize costs and stay within context window limits.\n\n**Note**: This is an experimental feature. Context editing may cause additional cache rewrites. Enable with caution.",
 	"github.copilot.config.useResponsesApi": "Use the Responses API instead of the Chat Completions API when supported. Enables reasoning and reasoning summaries.\n\n**Note**: This is an experimental feature that is not yet activated for all users.\n\n**Important**: URL API path resolution for custom OpenAI-compatible and Azure models is independent of this setting and fully determined by `url` property of `#github.copilot.chat.customOAIModels#` or `#github.copilot.chat.azureModels#` respectively.",
 	"github.copilot.config.responsesApiReasoningEffort": "Sets the reasoning effort used for the Responses API. Requires `#github.copilot.chat.useResponsesApi#`.",
 	"github.copilot.config.responsesApiReasoningSummary": "Sets the reasoning summary style used for the Responses API. Requires `#github.copilot.chat.useResponsesApi#`.",
@@ -352,6 +354,7 @@
 	"github.copilot.config.claudeCode.debug": "Enable debug mode for Claude Code agent.",
 	"github.copilot.config.cli.customAgents.enabled": "Enable Custom Agents for Background Agents.",
 	"github.copilot.config.cli.mcp.enabled": "Enable Model Context Protocol (MCP) server for Background Agents.",
+	"github.copilot.config.cli.autoCommit.enabled": "Enable automatic commit for Background Agents.",
 	"github.copilot.config.backgroundAgent.enabled": "Enable the Background Agent. When disabled, the Background Agent will not be available in 'Continue In' context menus.",
 	"github.copilot.config.cloudAgent.enabled": "Enable the Cloud Agent. When disabled, the Cloud Agent will not be available in 'Continue In' context menus.",
 	"github.copilot.config.gpt5AlternativePatch": "Enable GPT-5 alternative patch format.",
@@ -368,7 +371,12 @@
 	"github.copilot.chat.applyCopilotCLIAgentSessionChanges.apply": "Apply",
 	"github.copilot.command.applyCopilotCLIAgentSessionChanges": "Apply Changes to Workspace",
 	"github.copilot.config.githubMcpServer.enabled": "Enable built-in support for the GitHub MCP Server.",
-	"github.copilot.config.githubMcpServer.toolsets": "Specify toolsets to use from the GitHub MCP Server.",
-	"github.copilot.config.githubMcpServer.readonly": "Enable read-only mode for the GitHub MCP Server. When enabled, only read tools are available.",
-	"github.copilot.config.githubMcpServer.lockdown": "Enable lockdown mode for the GitHub MCP Server. When enabled, hides public issue details created by users without push access."
+	"github.copilot.config.githubMcpServer.toolsets": "Specify toolsets to use from the GitHub MCP Server. [Learn more](https://aka.ms/vscode-gh-mcp-toolsets).",
+	"github.copilot.config.githubMcpServer.readonly": "Enable read-only mode for the GitHub MCP Server. When enabled, only read tools are available. [Learn more](https://aka.ms/vscode-gh-mcp-readonly).",
+	"github.copilot.config.githubMcpServer.lockdown": "Enable lockdown mode for the GitHub MCP Server. When enabled, hides public issue details created by users without push access. [Learn more](https://aka.ms/vscode-gh-mcp-lockdown).",
+	"copilot.tools.runSubagent.name": "Run Subagent",
+	"copilot.tools.runSubagent.description": "Runs a task within an isolated subagent context. Enables efficient organization of tasks and context window management.",
+	"copilot.tools.searchSubagent.name": "Search Subagent",
+	"copilot.tools.searchSubagent.description": "Launch an iterative search-focused subagent to find relevant code in your workspace.",
+	"github.copilot.config.searchSubagent.enabled": "Enable the search subagent tool for iterative code exploration in the workspace."
 }

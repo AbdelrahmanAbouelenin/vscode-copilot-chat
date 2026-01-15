@@ -4,7 +4,6 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Raw } from '@vscode/prompt-tsx';
-import { ClientHttp2Stream } from 'http2';
 import type { CancellationToken } from 'vscode';
 import { IAuthenticationService } from '../../../platform/authentication/common/authentication';
 import { CopilotToken } from '../../../platform/authentication/common/copilotToken';
@@ -265,7 +264,6 @@ export class ChatMLFetcherImpl extends AbstractChatMLFetcher {
 							model: chatEndpoint.model,
 							apiType: chatEndpoint.apiType,
 							associatedRequestId: telemetryProperties.associatedRequestId,
-							retryAfterErrorCategory: telemetryProperties.retryAfterErrorCategory,
 							retryAfterError: telemetryProperties.retryAfterError,
 							retryAfterErrorGitHubRequestId: telemetryProperties.retryAfterErrorGitHubRequestId,
 							connectivityTestError: telemetryProperties.connectivityTestError,
@@ -313,6 +311,7 @@ export class ChatMLFetcherImpl extends AbstractChatMLFetcher {
 					connectivityTestError = connectivity.connectivityTestError ? this.scrubErrorDetail(connectivity.connectivityTestError, usernameToScrub) : undefined;
 					connectivityTestErrorGitHubRequestId = connectivity.connectivityTestErrorGitHubRequestId;
 					if (connectivity.retryRequest) {
+						Telemetry.sendResponseErrorTelemetry(this._telemetryService, processed, { ...telemetryProperties, connectivityTestError, connectivityTestErrorGitHubRequestId }, chatEndpoint, requestBody, tokenCount, maxResponseTokens, timeToError, this.filterImageMessages(messages), actualFetcher, true);
 						streamRecorder.callback('', 0, { text: '', retryReason: 'network_error' });
 						const retryResult = await this.fetchMany({
 							...opts,
@@ -326,7 +325,6 @@ export class ChatMLFetcherImpl extends AbstractChatMLFetcher {
 							userInitiatedRequest: false, // do not mark the retry as user initiated
 							telemetryProperties: {
 								...telemetryProperties,
-								retryAfterErrorCategory: processed.reasonDetail || processed.reason,
 								retryAfterError: processed.reasonDetail || processed.reason,
 								retryAfterErrorGitHubRequestId: processed.serverRequestId,
 								connectivityTestError,
@@ -353,7 +351,6 @@ export class ChatMLFetcherImpl extends AbstractChatMLFetcher {
 						model: chatEndpoint.model,
 						apiType: chatEndpoint.apiType,
 						associatedRequestId: telemetryProperties.associatedRequestId,
-						retryAfterErrorCategory: telemetryProperties.retryAfterErrorCategory,
 						retryAfterError: telemetryProperties.retryAfterError,
 						retryAfterErrorGitHubRequestId: telemetryProperties.retryAfterErrorGitHubRequestId,
 						connectivityTestError,
@@ -488,11 +485,10 @@ export class ChatMLFetcherImpl extends AbstractChatMLFetcher {
 		);
 
 		if (cancellationToken.isCancellationRequested) {
-			const body = await response!.body();
 			try {
 				// Destroy the stream so that the server is hopefully notified we don't want any more data
 				// and can cancel/forget about the request itself.
-				(body as ClientHttp2Stream).destroy();
+				await response!.body.destroy();
 			} catch (e) {
 				this._logService.error(e, `Error destroying stream`);
 				this._telemetryService.sendGHTelemetryException(e, 'Error destroying stream');
@@ -636,7 +632,7 @@ export class ChatMLFetcherImpl extends AbstractChatMLFetcher {
 			}
 			// This ID is hopefully the one the same as ourRequestId, but it is not guaranteed.
 			// If they are different then we will override the original one we set in telemetryData above.
-			const modelRequestId = getRequestId(response, undefined);
+			const modelRequestId = getRequestId(response.headers);
 			telemetryData.extendWithRequestId(modelRequestId);
 
 			// TODO: Add response length (requires parsing)
@@ -682,7 +678,7 @@ export class ChatMLFetcherImpl extends AbstractChatMLFetcher {
 		response: Response,
 		requestId: string
 	): Promise<ChatRequestFailed> {
-		const modelRequestIdObj = getRequestId(response, undefined);
+		const modelRequestIdObj = getRequestId(response.headers);
 		requestId = modelRequestIdObj.headerRequestId || requestId;
 		modelRequestIdObj.headerRequestId = requestId;
 
@@ -749,7 +745,11 @@ export class ChatMLFetcherImpl extends AbstractChatMLFetcher {
 			if (response.status === 402) {
 				// When we receive a 402, we have exceed a quota
 				// This is stored on the token so let's refresh it
-				this._authenticationService.resetCopilotToken(response.status);
+				if (!this._authenticationService.copilotToken?.isChatQuotaExceeded) {
+					this._authenticationService.resetCopilotToken(response.status);
+					await this._authenticationService.getCopilotToken();
+				}
+
 
 				const retryAfter = response.headers.get('retry-after');
 
@@ -1223,5 +1223,7 @@ export function locationToIntent(location: ChatLocation): string {
 			return 'conversation-agent';
 		case ChatLocation.ResponsesProxy:
 			return 'responses-proxy';
+		case ChatLocation.MessagesProxy:
+			return 'messages-proxy';
 	}
 }

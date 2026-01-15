@@ -155,16 +155,20 @@ export class SimulationFileSystemAdaptor implements IFileSystemService {
 	}
 
 	async stat(uri: URI): Promise<vscode.FileStat> {
-		const doc = await this._workspaceService.openTextDocument(uri);
-		if (doc) {
-			return {
-				type: FileType.File,
-				ctime: this._time,
-				mtime: this._time,
-				size: new TextEncoder().encode(doc.getText()).byteLength
-			};
+		try {
+			const doc = await this._workspaceService.openTextDocument(uri);
+			if (doc) {
+				return {
+					type: FileType.File,
+					ctime: this._time,
+					mtime: this._time,
+					size: new TextEncoder().encode(doc.getText()).byteLength
+				};
+			}
+			return await this._delegate.stat(this._workspace.mapLocation(uri));
+		} catch {
+			return await this._delegate.stat(this._workspace.mapLocation(uri));
 		}
-		return await this._delegate.stat(this._workspace.mapLocation(uri));
 	}
 
 	async readFile(uri: URI): Promise<Uint8Array> {
@@ -721,6 +725,7 @@ export class TestingGitService implements IGitService {
 					`https://github.com/microsoft/simuluation-test-${basename(workspaceFolderPath)}`
 				],
 				remotes: [],
+				worktrees: [],
 				changes: undefined,
 				headBranchNameObs: constObservable(undefined),
 				headCommitHashObs: constObservable(undefined),
@@ -742,7 +747,7 @@ export class TestingGitService implements IGitService {
 		return [];
 	}
 
-	async diffBetweenPatch(uri: URI, ref1: string, ref2: string, path: string): Promise<string | undefined> {
+	async diffBetweenPatch(uri: URI, ref1: string, ref2: string, path?: string): Promise<string | undefined> {
 		return undefined;
 	}
 
