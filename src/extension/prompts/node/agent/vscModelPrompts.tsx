@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { PromptElement, PromptSizing } from '@vscode/prompt-tsx';
-import { isNotPublic, isVSCModelB } from '../../../../platform/endpoint/common/chatModelCapabilities';
+import { isNotPublic, isVSCModelA } from '../../../../platform/endpoint/common/chatModelCapabilities';
 import { IChatEndpoint } from '../../../../platform/networking/common/networking';
 import { ToolName } from '../../../tools/common/toolNames';
 import { InstructionMessage } from '../base/instructionMessage';
@@ -256,7 +256,7 @@ class VSCModelPromptB extends PromptElement<DefaultAgentPromptProps> {
 class VSCModelPromptResolverA implements IAgentPrompt {
 	static readonly familyPrefixes = ['vscModelA'];
 	static async matchesModel(endpoint: IChatEndpoint): Promise<boolean> {
-		return isNotPublic(endpoint);
+		return isVSCModelA(endpoint);
 	}
 
 	resolveSystemPrompt(endpoint: IChatEndpoint): SystemPrompt | undefined {
@@ -271,7 +271,7 @@ class VSCModelPromptResolverA implements IAgentPrompt {
 class VSCModelPromptResolverB implements IAgentPrompt {
 	static readonly familyPrefixes = ['vscModelB'];
 	static async matchesModel(endpoint: IChatEndpoint): Promise<boolean> {
-		return isVSCModelB(endpoint);
+		return isNotPublic(endpoint);
 	}
 
 	resolveSystemPrompt(endpoint: IChatEndpoint): SystemPrompt | undefined {
