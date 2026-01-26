@@ -10,6 +10,7 @@ import { CancellationTokenSource } from 'vscode-languageserver-protocol';
 import { generateUuid } from '../../../../../../../util/vs/base/common/uuid';
 import { SyncDescriptor } from '../../../../../../../util/vs/platform/instantiation/common/descriptors';
 import { ServicesAccessor } from '../../../../../../../util/vs/platform/instantiation/common/instantiation';
+import { GhostTextLogContext } from '../../../../../common/ghostTextContext';
 import { initializeTokenizers } from '../../../../prompt/src/tokenization';
 import { CompletionState, createCompletionState } from '../../completionState';
 import { ConfigKey, ICompletionsConfigProvider, InMemoryConfigProvider } from '../../config';
@@ -28,8 +29,10 @@ import { ITextDocument, LocationFactory } from '../../textDocument';
 import { Deferred } from '../../util/async';
 import { ICompletionsAsyncManagerService } from '../asyncCompletions';
 import { ICompletionsCacheService } from '../completionsCache';
+import { GetNetworkCompletionsType } from '../completionsFromNetwork';
 import { ICompletionsCurrentGhostText } from '../current';
-import { getGhostText, GetNetworkCompletionsType, GhostCompletion, ResultType } from '../ghostText';
+import { getGhostText, GhostCompletion } from '../ghostText';
+import { ResultType } from '../resultType';
 import { mkBasicResultTelemetry } from '../telemetry';
 
 // Unit tests for ghostText that do not require network connectivity. For other
@@ -56,13 +59,14 @@ suite('Isolated GhostText tests', function () {
 		serviceCollection.define(ICompletionsOpenAIFetcherService, new SyncDescriptor(LiveOpenAIFetcher)); // gets results from static fetcher
 		const accessor = serviceCollection.createTestingAccessor();
 
-		const doc = createTextDocument('file:///fizzbuzz.go', languageId, 1, docText);
+		const filePath = 'file:///fizzbuzz.go';
+		const doc = createTextDocument(filePath, languageId, 1, docText);
 		const state = createCompletionState(doc, position);
 		const prefix = getPrefix(state);
 
 		// Setup closures with the state as default
 		function requestGhostText(completionState = state) {
-			return getGhostText(accessor, completionState, token, {});
+			return getGhostText(accessor, completionState, token, {}, new GhostTextLogContext(filePath, doc.version, undefined));
 		}
 		async function requestPrompt(completionState = state) {
 			const telemExp = TelemetryWithExp.createEmptyConfigForTesting();
@@ -649,7 +653,7 @@ suite('Isolated GhostText tests', function () {
 		configProvider.setConfig(ConfigKey.AlwaysRequestMultiline, true);
 		currentGhostText.hasAcceptedCurrentCompletion = () => true;
 
-		const response = await getGhostText(accessor, state, undefined, { isSpeculative: true });
+		const response = await getGhostText(accessor, state, undefined, { isSpeculative: true }, new GhostTextLogContext('file:///fizzbuzz.go', doc.version, undefined));
 
 		assert.strictEqual(response.type, 'success');
 		assert.strictEqual(response.value[0].length, 1);

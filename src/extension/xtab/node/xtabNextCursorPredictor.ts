@@ -10,13 +10,14 @@ import { ChatEndpoint } from '../../../platform/endpoint/node/chatEndpoint';
 import { NextCursorLinePrediction } from '../../../platform/inlineEdits/common/dataTypes/nextCursorLinePrediction';
 import * as xtabPromptOptions from '../../../platform/inlineEdits/common/dataTypes/xtabPromptOptions';
 import { parseLintOptionString } from '../../../platform/inlineEdits/common/dataTypes/xtabPromptOptions';
+import { StatelessNextEditTelemetryBuilder } from '../../../platform/inlineEdits/common/statelessNextEditProvider';
 import { ILanguageDiagnosticsService } from '../../../platform/languages/common/languageDiagnosticsService';
 import { OptionalChatRequestParams } from '../../../platform/networking/common/fetch';
 import { IExperimentationService } from '../../../platform/telemetry/common/nullExperimentationService';
 import { fromUnknown } from '../../../util/common/errors';
 import { Result } from '../../../util/common/result';
 import { TokenizerType } from '../../../util/common/tokenizer';
-import { ITracer } from '../../../util/common/tracing';
+import { ILogger } from '../../../platform/log/common/logService';
 import { assertNever } from '../../../util/vs/base/common/assert';
 import { CancellationToken } from '../../../util/vs/base/common/cancellation';
 import { IInstantiationService } from '../../../util/vs/platform/instantiation/common/instantiation';
@@ -65,9 +66,9 @@ export class XtabNextCursorPredictor {
 	}
 
 
-	public async predictNextCursorPosition(promptPieces: PromptPieces, parentTracer: ITracer): Promise<Result</* zero-based line number */ number, Error>> {
+	public async predictNextCursorPosition(promptPieces: PromptPieces, parentTracer: ILogger, telemetryBuilder: StatelessNextEditTelemetryBuilder | undefined, cancellationToken: CancellationToken): Promise<Result</* zero-based line number */ number, Error>> {
 
-		const tracer = parentTracer.sub('predictNextCursorPosition');
+		const tracer = parentTracer.createSubLogger('predictNextCursorPosition');
 
 		const systemMessage = `Your task is to predict the next line number in the current file where the developer is most likely to make their next edit, using the provided context. If you don't think anywhere is a good next line jump target, just output the current line number of the cursor. Make sure to just output the line number and nothing else (no explanation, reasoning, etc.).`;
 
@@ -100,6 +101,8 @@ export class XtabNextCursorPredictor {
 		const lintOptions = this.determineLintOptions();
 		const lintErrors = lintOptions ? new LintErrors(lintOptions, promptPieces.activeDoc.id, promptPieces.currentDocument, this.langDiagService) : undefined;
 
+		const includeLineNumbersInRecentSnippets = this.configService.getExperimentBasedConfig(ConfigKey.TeamInternal.InlineEditsNextCursorPredictionRecentSnippetsIncludeLineNumbers, this.expService);
+
 		const newPromptPieces = new PromptPieces(
 			promptPieces.currentDocument,
 			promptPieces.editWindowLinesRange,
@@ -116,6 +119,10 @@ export class XtabNextCursorPredictor {
 				...promptPieces.opts,
 				includePostScript: false,
 				lintOptions,
+				recentlyViewedDocuments: {
+					...promptPieces.opts.recentlyViewedDocuments,
+					includeLineNumbers: includeLineNumbersInRecentSnippets,
+				},
 			},
 		);
 
@@ -125,6 +132,8 @@ export class XtabNextCursorPredictor {
 			systemMsg: systemMessage,
 			userMsg: userMessage
 		});
+
+		telemetryBuilder?.setCursorJumpPrompt(messages);
 
 		const modelName = this.configService.getExperimentBasedConfig(ConfigKey.TeamInternal.InlineEditsNextCursorPredictionModelName, this.expService);
 		if (modelName === undefined) {
@@ -177,7 +186,7 @@ export class XtabNextCursorPredictor {
 				location: ChatLocation.Other,
 				requestOptions,
 			},
-			CancellationToken.None,
+			cancellationToken,
 		);
 
 		if (response.type !== ChatFetchResponseType.Success) {
@@ -189,6 +198,7 @@ export class XtabNextCursorPredictor {
 		}
 
 		try {
+			telemetryBuilder?.setCursorJumpResponse(response.value);
 			const trimmed = response.value.trim();
 			const lineNumber = parseInt(trimmed, 10);
 			if (isNaN(lineNumber)) {

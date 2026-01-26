@@ -95,7 +95,8 @@ export const getAgentTools = async (accessor: ServicesAccessor, request: vscode.
 	}
 
 	allowTools[ToolName.EditFilesPlaceholder] = false;
-	if (request.tools.get(ContributedToolName.EditFilesPlaceholder) === false) {
+	// todo@connor4312: string check here is for back-compat for 1.109 Insiders
+	if (Iterable.some(request.tools, ([t, enabled]) => (typeof t === 'string' ? t : t.name) === ContributedToolName.EditFilesPlaceholder && enabled === false)) {
 		allowTools[ToolName.ApplyPatch] = false;
 		allowTools[ToolName.EditFile] = false;
 		allowTools[ToolName.ReplaceString] = false;
@@ -231,8 +232,8 @@ export class AgentIntentInvocation extends EditCodeIntentInvocation implements I
 		let shouldTriggerSummarize = false;
 		const budgetThreshold = Math.floor((baseBudget - toolTokens) * 0.85);
 
-		const anthropicContextEditingEnabled = isAnthropicContextEditingEnabled(this.configurationService, this.expService);
-		if (summarizationEnabled && isAnthropicFamily(this.endpoint) && anthropicContextEditingEnabled) {
+		const anthropicContextEditingEnabled = isAnthropicFamily(this.endpoint) && isAnthropicContextEditingEnabled(this.endpoint, this.configurationService, this.expService);
+		if (summarizationEnabled && anthropicContextEditingEnabled) {
 			// First check current turn for token usage (from tool calling loop), then fall back to previous turn's result metadata
 			const currentTurn = promptContext.conversation?.getLatestTurn();
 			const currentTurnTokenUsage = currentTurn?.getMetadata(AnthropicTokenUsageMetadata);
