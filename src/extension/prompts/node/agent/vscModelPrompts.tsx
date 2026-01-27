@@ -14,7 +14,6 @@ import { IAgentPrompt, PromptRegistry, ReminderInstructionsConstructor, SystemPr
 
 class VSCModelPromptA extends PromptElement<DefaultAgentPromptProps> {
 	async render(state: void, sizing: PromptSizing) {
-		const tools = detectToolCapabilities(this.props.availableTools);
 		return <InstructionMessage>
 			<Tag name='parallel_tool_use_instructions'>
 				Using `multi_tool_use` to call multiple tools in parallel is ENCOURAGED. If you think running multiple tools can answer the user's question, prefer calling them in parallel whenever possible, but do not call semantic_search in parallel.<br />
