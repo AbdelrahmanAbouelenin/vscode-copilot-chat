@@ -1,7 +1,6 @@
 # This same tests the type checker's ability to validate
 # types related to coroutines (and async/await) statements.
 
-from typing import Generator, Any, Optional
 
 
 async def coroutine1():

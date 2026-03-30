@@ -32,7 +32,10 @@ function configureDevPackages() {
 }
 //#endregion
 
-export function activate(context: ExtensionContext, forceActivation?: boolean) {
+export async function activate(context: ExtensionContext, forceActivation?: boolean) {
+	// Note: Headless tools server is initialized via HeadlessToolsServer contribution
+	// when COPILOT_TOOLS_API=true
+
 	return baseActivate({
 		context,
 		registerServices,

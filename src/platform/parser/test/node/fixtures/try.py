@@ -23,6 +23,3 @@ except (ImportError, OSError):
         GSS_AUTH_AVAILABLE = False
         _API = None
 
-from paramiko.common import MSG_USERAUTH_REQUEST
-from paramiko.ssh_exception import SSHException
-from paramiko._version import __version_info__

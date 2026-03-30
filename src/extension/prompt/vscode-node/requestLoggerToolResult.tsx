@@ -18,8 +18,17 @@ export async function renderToolResultToStringNoBudget(part: LanguageModelPrompt
 		modelMaxPromptTokens: Infinity,
 	}, { mode: OutputMode.Raw, countMessageTokens: () => 0, tokenLength: () => 0 });
 
+	// Handle edge cases where messages might be empty or undefined
+	if (!r.messages || r.messages.length === 0 || !r.messages[0]) {
+		return '';
+	}
+
 	const c = r.messages[0].content;
-	return typeof c === 'string' ? c : c.map(p => p.type === Raw.ChatCompletionContentPartKind.Text ? p.text : p.type === Raw.ChatCompletionContentPartKind.Image ? `<promptTsxImg src="${p.imageUrl}" />` : undefined).join('');
+	if (!c) {
+		return '';
+	}
+
+	return typeof c === 'string' ? c : c.map(p => p.type === Raw.ChatCompletionContentPartKind.Text ? p.text : p.type === Raw.ChatCompletionContentPartKind.Image ? `<promptTsxImg src="${p.imageUrl}" />` : '').filter(Boolean).join('');
 }
 
 export function renderDataPartToString(part: LanguageModelDataPart) {

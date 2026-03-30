@@ -271,6 +271,14 @@ export class WorkspaceContext extends PromptElement<WorkspaceContextProps, Works
 			return;
 		}
 
+		// HEADLESS: Skip LLM call for query preprocessing when no credentials available
+		const isHeadless = process.env.COPILOT_HEADLESS === 'true';
+		const hasGitHubCredentials = !!(process.env.VSCODE_COPILOT_CHAT_TOKEN || process.env.GITHUB_OAUTH_TOKEN);
+		if (isHeadless && !hasGitHubCredentials) {
+			this.logService.debug('[Workspace Resolver] Headless mode without credentials: using simple keyword extraction');
+			return this.getHeadlessWorkspaceChunkQuery(message);
+		}
+
 		const contextEndpoint = await this.endpointProvider.getChatEndpoint('copilot-fast');
 		if (token.isCancellationRequested) {
 			throw new CancellationError();
@@ -409,6 +417,33 @@ export class WorkspaceContext extends PromptElement<WorkspaceContextProps, Works
 				}
 			},
 		} satisfies WorkspaceChunkQuery;
+	}
+
+	/**
+	 * Creates a simple WorkspaceChunkQuery for headless mode without LLM preprocessing.
+	 * Extracts keywords using simple regex-based identifier extraction.
+	 */
+	private getHeadlessWorkspaceChunkQuery(message: string): WorkspaceChunkQuery {
+		// Extract identifiers from the query using regex (same approach as SemanticSearchTextSearchProvider)
+		const extractKeywords = (text: string): readonly KeywordItem[] => {
+			const identifiers = new Set<string>();
+			for (const match of text.matchAll(/(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g)) {
+				identifiers.add(match[0]);
+			}
+			return Array.from(identifiers.values(), k => ({ keyword: k, variations: [] }));
+		};
+
+		const keywords = extractKeywords(message);
+		const resolvedQuery: ResolvedWorkspaceChunkQuery = {
+			rephrasedQuery: message,
+			keywords,
+		};
+
+		return {
+			rawQuery: message,
+			resolveQueryAndKeywords: async () => resolvedQuery,
+			resolveQuery: async () => message,
+		};
 	}
 
 	override render(state: WorkspaceContextState, sizing: PromptSizing): PromptPiece<any, any> | undefined {

@@ -20,6 +20,7 @@ import { URI } from '../../../../util/vs/base/common/uri';
 import { IInstantiationService } from '../../../../util/vs/platform/instantiation/common/instantiation';
 import { ServiceCollection } from '../../../../util/vs/platform/instantiation/common/serviceCollection';
 import { ChatResponseReferencePart, Location, Uri } from '../../../../vscodeTypes';
+import { HeadlessChatEndpoint } from '../../../headless/headlessEndpointProvider';
 import { RendererVisualizations } from '../../../inlineChat/node/rendererVisualization';
 import { getUniqueReferences, PromptReference } from '../../../prompt/common/conversation';
 import { IBuildPromptContext } from '../../../prompt/common/intents';
@@ -212,6 +213,13 @@ export async function renderPromptElementJSON<P extends BasePromptElementProps>(
 	// todo@connor4312: we don't know what model the tool call will use, just assume copilot base
 	// todo@lramos15: We should pass in endpoint provider rather than doing invoke function, but this was easier
 	const endpoint = await instantiationService.invokeFunction(async (accessor) => {
+		// HEADLESS: Use mock endpoint to avoid rate-limited models API call.
+		// We only need the tokenizer, not real model metadata.
+		const isHeadless = process.env.COPILOT_HEADLESS === 'true';
+		if (isHeadless) {
+			const tokenizerProvider = accessor.get(ITokenizerProvider);
+			return new HeadlessChatEndpoint(tokenizerProvider);
+		}
 		const endpointProvider = accessor.get(IEndpointProvider);
 		return await endpointProvider.getChatEndpoint('copilot-base');
 	});

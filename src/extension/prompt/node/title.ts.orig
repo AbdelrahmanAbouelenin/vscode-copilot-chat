@@ -25,11 +25,6 @@ export class ChatTitleProvider implements vscode.ChatTitleProvider {
 		token: vscode.CancellationToken,
 	): Promise<string | undefined> {
 
-		// In headless mode, we don't have access to LLM for title generation
-		if (process.env.COPILOT_HEADLESS === 'true') {
-			return '';
-		}
-
 		// Get the first user message directly from the context
 		// Use instanceof to properly check if the first item is a ChatRequestTurn
 		const firstRequest = context.history.find(item => item instanceof ChatRequestTurn);

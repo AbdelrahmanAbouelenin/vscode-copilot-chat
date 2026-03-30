@@ -80,9 +80,9 @@ import { ITestDepsResolver, TestDepsResolver } from '../../../platform/testing/n
 import { ITokenizerProvider, TokenizerProvider } from '../../../platform/tokenizer/node/tokenizer';
 import { ITrajectoryLogger } from '../../../platform/trajectory/common/trajectoryLogger';
 import { TrajectoryLogger } from '../../../platform/trajectory/node/trajectoryLogger';
-import { GithubAvailableEmbeddingTypesService, IGithubAvailableEmbeddingTypesService, MockGithubAvailableEmbeddingTypesService } from '../../../platform/workspaceChunkSearch/common/githubAvailableEmbeddingTypes';
+import { GithubAvailableEmbeddingTypesService, IGithubAvailableEmbeddingTypesService } from '../../../platform/workspaceChunkSearch/common/githubAvailableEmbeddingTypes';
 import { IRerankerService, RerankerService } from '../../../platform/workspaceChunkSearch/common/rerankerService';
-import { HeadlessWorkspaceChunkSearchService, IWorkspaceChunkSearchService, WorkspaceChunkSearchService } from '../../../platform/workspaceChunkSearch/node/workspaceChunkSearchService';
+import { IWorkspaceChunkSearchService, WorkspaceChunkSearchService } from '../../../platform/workspaceChunkSearch/node/workspaceChunkSearchService';
 import { IWorkspaceFileIndex, WorkspaceFileIndex } from '../../../platform/workspaceChunkSearch/node/workspaceFileIndex';
 import { IInstantiationServiceBuilder } from '../../../util/common/services';
 import { SyncDescriptor } from '../../../util/vs/platform/instantiation/common/descriptors';
@@ -104,7 +104,6 @@ import { FeedbackReporter } from '../../conversation/vscode-node/feedbackReporte
 import { IUserFeedbackService, UserFeedbackService } from '../../conversation/vscode-node/userActions';
 import { ConversationStore, IConversationStore } from '../../conversationStore/node/conversationStore';
 import { SimilarFilesContextService } from '../../inlineEdits/vscode-node/similarFilesContext';
-import { HeadlessEndpointProvider } from '../../headless/headlessEndpointProvider';
 import { IIntentService, IntentService } from '../../intents/node/intentService';
 import { INewWorkspacePreviewContentManager, NewWorkspacePreviewContentManagerImpl } from '../../intents/node/newIntent';
 import { ITestGenInfoStorage, TestGenInfoStorage } from '../../intents/node/testIntent/testInfoStorage';
@@ -176,33 +175,20 @@ export function registerServices(builder: IInstantiationServiceBuilder, extensio
 	const internalAIKey = extensionContext.extension.packageJSON.internalAIKey ?? '';
 	const internalLargeEventAIKey = extensionContext.extension.packageJSON.internalLargeStorageAriaKey ?? '';
 	const ariaKey = extensionContext.extension.packageJSON.ariaKey ?? '';
-	// HEADLESS: Check for headless mode via env var
-	const isHeadlessMode = process.env.COPILOT_HEADLESS === 'true';
-	if (isTestMode || isScenarioAutomation || isHeadlessMode) {
+	if (isTestMode || isScenarioAutomation) {
 		setupTelemetry(builder, extensionContext, internalAIKey, internalLargeEventAIKey, ariaKey);
-		// If we're in testing mode or headless mode, use the testing token manager
-		// which supports GITHUB_PAT, GITHUB_OAUTH_TOKEN env vars
+		// If we're in testing mode, then most code will be called from an actual test,
+		// and not from here. However, some objects will capture the `accessor` we pass
+		// here and then re-use it later. This is particularly the case for those objects
+		// which implement VSCode interfaces so can't be changed to take `accessor` in their
+		// method parameters.
 		builder.define(ICopilotTokenManager, getOrCreateTestingCopilotTokenManager(env.devDeviceId));
 	} else {
 		setupTelemetry(builder, extensionContext, internalAIKey, internalLargeEventAIKey, ariaKey);
 		builder.define(ICopilotTokenManager, new SyncDescriptor(VSCodeCopilotTokenManager));
 	}
 
-	if (isHeadlessMode) {
-		// Headless mode: use production endpoint provider if token available (enables embeddings/semantic search)
-		const tokenProvider = createStaticGitHubTokenProvider();
-		builder.define(IAuthenticationService, new SyncDescriptor(StaticGitHubAuthenticationService, [tokenProvider]));
-
-		if (tokenProvider) {
-			// Token available - use production endpoint provider for real embeddings
-			builder.define(IEndpointProvider, new SyncDescriptor(ProductionEndpointProvider));
-		} else {
-			// No token - use headless endpoint (no embeddings)
-			builder.define(IEndpointProvider, new SyncDescriptor(HeadlessEndpointProvider));
-		}
-
-		builder.define(IIgnoreService, new SyncDescriptor(NullIgnoreService));
-	} else if (isScenarioAutomation) {
+	if (isScenarioAutomation) {
 		builder.define(IAuthenticationService, new SyncDescriptor(StaticGitHubAuthenticationService, [createStaticGitHubTokenProvider()]));
 		builder.define(IEndpointProvider, new SyncDescriptor(ScenarioAutomationEndpointProviderImpl));
 		builder.define(IIgnoreService, new SyncDescriptor(NullIgnoreService));
@@ -243,11 +229,7 @@ export function registerServices(builder: IInstantiationServiceBuilder, extensio
 	builder.define(IGithubApiFetcherService, new SyncDescriptor(GithubApiFetcherService));
 	builder.define(IGithubCodeSearchService, new SyncDescriptor(GithubCodeSearchService));
 	builder.define(IAdoCodeSearchService, new SyncDescriptor(AdoCodeSearchService));
-	// HEADLESS: Use TF-IDF only search when no GitHub Copilot credentials are available
-	const hasGitHubCredentials = !!(process.env.VSCODE_COPILOT_CHAT_TOKEN || process.env.GITHUB_OAUTH_TOKEN);
-	builder.define(IWorkspaceChunkSearchService, isHeadlessMode && !hasGitHubCredentials
-		? new SyncDescriptor(HeadlessWorkspaceChunkSearchService)
-		: new SyncDescriptor(WorkspaceChunkSearchService));
+	builder.define(IWorkspaceChunkSearchService, new SyncDescriptor(WorkspaceChunkSearchService));
 	builder.define(ISettingsEditorSearchService, new SyncDescriptor(SettingsEditorSearchServiceImpl));
 	builder.define(INewWorkspacePreviewContentManager, new SyncDescriptor(NewWorkspacePreviewContentManagerImpl));
 	builder.define(IPromptVariablesService, new SyncDescriptor(PromptVariablesServiceImpl));
@@ -264,10 +246,7 @@ export function registerServices(builder: IInstantiationServiceBuilder, extensio
 	builder.define(IWorkspaceListenerService, new SyncDescriptor(WorkspacListenerService));
 	builder.define(ICodeSearchAuthenticationService, new SyncDescriptor(VsCodeCodeSearchAuthenticationService));
 	builder.define(ITodoListContextProvider, new SyncDescriptor(TodoListContextProvider));
-	// HEADLESS: Use mock to avoid rate limiting on embeddings models API
-	builder.define(IGithubAvailableEmbeddingTypesService, isHeadlessMode
-		? new SyncDescriptor(MockGithubAvailableEmbeddingTypesService)
-		: new SyncDescriptor(GithubAvailableEmbeddingTypesService));
+	builder.define(IGithubAvailableEmbeddingTypesService, new SyncDescriptor(GithubAvailableEmbeddingTypesService));
 	builder.define(IRerankerService, new SyncDescriptor(RerankerService));
 	builder.define(IProxyModelsService, new SyncDescriptor(ProxyModelsService));
 	builder.define(IPowerService, new SyncDescriptor(PowerService));

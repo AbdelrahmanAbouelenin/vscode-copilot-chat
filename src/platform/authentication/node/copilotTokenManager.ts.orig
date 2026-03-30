@@ -44,10 +44,9 @@ export const tokenErrorString = `Tests: either GITHUB_PAT, GITHUB_OAUTH_TOKEN, o
 export function createStaticGitHubTokenProvider(): (() => string) | undefined {
 	const pat = process.env.GITHUB_PAT;
 	const oauthToken = process.env.GITHUB_OAUTH_TOKEN;
-	const isHeadlessMode = process.env.COPILOT_HEADLESS === 'true';
 
-	// In automation or headless scenarios, NoAuth/BYOK-only scenarios are expected to not have any tokens set.
-	if ((isScenarioAutomation || isHeadlessMode) && !pat && !oauthToken) {
+	// In automation scenarios, NoAuth/BYOK-only scenarios are expected to not have any tokens set.
+	if (isScenarioAutomation && !pat && !oauthToken) {
 		return undefined;
 	}
 
@@ -77,9 +76,8 @@ export function getOrCreateTestingCopilotTokenManager(deviceId: string): SyncDes
 		return new SyncDescriptor(FixedCopilotTokenManager, [process.env.GITHUB_PAT]);
 	}
 
-	// In automation or headless scenarios, NoAuth/BYOK-only scenarios are expected to not have any tokens set.
-	const isHeadlessMode = process.env.COPILOT_HEADLESS === 'true';
-	if (isScenarioAutomation || isHeadlessMode) {
+	// In automation scenarios, NoAuth/BYOK-only scenarios are expected to not have any tokens set.
+	if (isScenarioAutomation) {
 		return new SyncDescriptor(CopilotTokenManagerFromDeviceId, [deviceId]);
 	}
 

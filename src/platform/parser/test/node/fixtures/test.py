@@ -5,7 +5,6 @@ This is a multi-line comment
 """
 
 # Importing a module
-import math
 
 # Variable assignment
 x = 10

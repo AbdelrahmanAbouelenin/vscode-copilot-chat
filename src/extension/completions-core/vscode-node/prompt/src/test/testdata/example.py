@@ -3,13 +3,13 @@ This is an example Python source file to use as test data.  It's pulled from the
 with minor edits to make it a better test case.
 """
 
-from tree_sitter import Language, Parser
+from tree_sitter import Parser
 import re
-import os, sys
+import os
 from dataclasses import dataclass, field
 import codesynthesis.synthesis as synthesis
 import harness.fun_run as fun_run
-from harness.utils import temporary_path_change_to, get_canonical_logger, TreeSitter
+from harness.utils import get_canonical_logger, TreeSitter
 import types
 import subprocess
 

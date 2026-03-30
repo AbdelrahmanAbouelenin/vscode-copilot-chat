@@ -50,6 +50,7 @@ import { SetupTestsContribution } from '../../testing/vscode/setupTestContributi
 import { ToolsContribution } from '../../tools/vscode-node/tools';
 import { ChatDebugLogProviderContribution } from '../../trajectory/vscode-node/chatDebugLogProvider';
 import { TrajectoryExportCommands } from '../../trajectory/vscode-node/trajectoryExportCommands';
+import { HeadlessToolsServer } from '../../headless/headlessToolsServer';
 import { InlineCompletionContribution } from '../../typescriptContext/vscode-node/languageContextService';
 import { NesRenameContribution } from '../../typescriptContext/vscode-node/nesRenameService';
 import * as workspaceChunkSearchContribution from '../../workspaceChunkSearch/node/workspaceChunkSearch.contribution';
@@ -103,6 +104,10 @@ export const vscodeNodeContributions: IExtensionContributionFactory[] = [
 	asContributionFactory(ChatSessionsContrib),
 	asContributionFactory(GitHubMcpContrib),
 	asContributionFactory(OTelContrib),
+	// HEADLESS: Always load ToolsContribution regardless of auth status
+	asContributionFactory(ToolsContribution),
+	// HEADLESS: Simplified tools server (only starts if COPILOT_TOOLS_API=true)
+	asContributionFactory(HeadlessToolsServer),
 ];
 
 /**
